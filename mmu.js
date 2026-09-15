@@ -71,10 +71,39 @@ if (ultimaSecuenciaEjecucion.length === 0) {
 }
 
 
+const mapaProcesos = {};
+procesos.forEach(p => {
+    mapaProcesos[p.id] = p;
+});
+
+let contadorPaginaGlobal = 1;
+const paginasPorProceso = {};
+
+procesos.forEach(p => {
+    const cantidadPaginas = p.paginasRequeridas || 1;
+    const listaPaginasProc = [];
+    for (let k = 0; k < cantidadPaginas; k++) {
+        let pagAsignada = ((contadorPaginaGlobal - 1) % configuracionSO.paginasVirtuales) + 1;
+        listaPaginasProc.push(pagAsignada);
+        contadorPaginaGlobal++;
+    }
+    paginasPorProceso[p.id] = listaPaginasProc;
+});
+
 ultimaSecuenciaEjecucion.forEach(idProceso => {
-    let digitos = idProceso.replace(/\D/g, "");
-    let numeroPagina = digitos !== "" ? parseInt(digitos) : (idProceso.charCodeAt(0) % configuracionSO.paginasVirtuales) + 1;
-    referencias.push(numeroPagina);
+    const paginasAsignadas = paginasPorProceso[idProceso];
+    if (paginasAsignadas && paginasAsignadas.length > 0) {
+        paginasAsignadas.forEach(numPagina => {
+            referencias.push(numPagina);
+        });
+    } else {
+        const proc = mapaProcesos[idProceso];
+        const cantidadPaginas = proc && proc.paginasRequeridas ? proc.paginasRequeridas : 1;
+        for (let k = 1; k <= cantidadPaginas; k++) {
+            let numPagina = ((k - 1) % configuracionSO.paginasVirtuales) + 1;
+            referencias.push(numPagina);
+        }
+    }
 });
 
     if (algoritmo === "FIFO") {
@@ -754,12 +783,11 @@ export function ejecutarMRU(
             if (marcoVacio !== -1) {
                 marcos[marcoVacio] = pagina;
             } else {
-                const posicionReemplazo = marcos.indexOf(ultimoUso);
-                if (posicionReemplazo !== -1) {
-                    marcos[posicionReemplazo] = pagina;
-                } else {
-                    marcos[0] = pagina;
+                let posicionReemplazo = marcos.indexOf(ultimoUso);
+                if (posicionReemplazo === -1) {
+                    posicionReemplazo = 0;
                 }
+                marcos[posicionReemplazo] = pagina;
             }
 
             ultimoUso = pagina;
